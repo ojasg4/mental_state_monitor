@@ -94,7 +94,7 @@ async def connect_ble():
                     await asyncio.sleep(1)
 
         except Exception as e:
-            print(f"BLE error: {e} — retrying in 5s...")
+            print(f"BLE error: {e}, retrying in 5s...")
             await asyncio.sleep(5)
 
 
