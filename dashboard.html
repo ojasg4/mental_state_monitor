@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EMDR Arousal Monitor</title>
+  <style>
+    :root {
+      --bg: #eaeaea; --panel: #efefef; --header: #2451e6; --text: #1f2937;
+      --muted: #6b7280; --border: #d4d4d4;
+      --shadow: 0 8px 30px rgba(0,0,0,0.1); --card-shadow: 0 6px 16px rgba(0,0,0,0.08);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); }
+    .app-shell { min-height: 100vh; padding: 16px; }
+    .phone { max-width: 430px; margin: 0 auto; background: var(--panel); border-radius: 28px; overflow: hidden; box-shadow: var(--shadow); }
+    .header { background: var(--header); color: white; padding: 18px 20px 20px; }
+    .row { display: flex; gap: 12px; }
+    .between { justify-content: space-between; align-items: center; }
+    .title { font-size: 30px; font-weight: 800; line-height: 1.05; margin: 0; }
+    .subtle { font-size: 13px; color: rgba(255,255,255,.9); margin-top: 6px; display: flex; gap: 8px; align-items: center; }
+    .conn-dot { width: 10px; height: 10px; border-radius: 50%; background: #f87171; flex-shrink: 0; transition: background .3s; }
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+    .stat { background: rgba(255,255,255,.14); padding: 10px 12px; border-radius: 16px; font-size: 12px; }
+    .stat .label { opacity: .8; }
+    .stat .value { margin-top: 6px; font-weight: 800; }
+    .microcopy { margin-top: 10px; font-size: 11px; color: rgba(255,255,255,.88); line-height: 1.35; }
+    .btn { border-radius: 12px; border: none; font-weight: 700; font-size: 15px; padding: 12px 16px; cursor: pointer; margin-top: 10px; width: 100%; }
+    .btn-green  { background: #bbf7d0; color: #14532d; }
+    .btn-yellow { background: #fde68a; color: #92400e; }
+    .btn-red    { background: #fecaca; color: #7f1d1d; }
+    .btn-ghost  { background: transparent; color: white; border: 1px solid rgba(255,255,255,.45); font-size: 13px; padding: 8px 16px; }
+    .content { padding: 14px; }
+
+    /* State card */
+    .state-card { border-radius: 24px; border: 2px solid #8bc34a; background: #e7f4d9; padding: 14px 14px 12px; box-shadow: var(--card-shadow); }
+    .state-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+    .state-title { font-size: 21px; font-weight: 900; line-height: 1.1; }
+    .state-summary { margin-top: 10px; font-size: 14px; color: #4c6b3a; }
+    .trend { width: 48px; height: 48px; border-radius: 999px; display: grid; place-items: center; color: white; font-size: 22px; font-weight: 900; box-shadow: 0 5px 12px rgba(0,0,0,.16); }
+    .scale-labels { display: flex; justify-content: space-between; align-items: center; font-weight: 800; margin-top: 12px; color: #1f365c; font-size: 14px; }
+    .baseline-pill { background: #d9ba68; color: #1f3c8c; border-radius: 999px; padding: 6px 16px; font-size: 13px; font-weight: 700; }
+    .bar { position: relative; margin-top: 10px; height: 12px; border-radius: 999px; overflow: hidden; display: flex; }
+    .seg1,.seg2,.seg3,.seg4,.seg5 { flex: 0 0 auto; }
+    .seg1{background:#2157f3}.seg2{background:#60a5fa}.seg3{background:#22c55e}.seg4{background:#f59e0b}.seg5{background:#f97316}
+    .zone-labels { margin-top: 6px; display: flex; justify-content: space-between; font-size: 10px; font-weight: 800; color: #5b6472; }
+    .pointer { position: absolute; top: 50%; transform: translate(-50%,-50%); width: 6px; height: 24px; border-radius: 999px; background: #1e293b; box-shadow: 0 3px 8px rgba(0,0,0,.3); }
+    .graph-box { margin-top: 14px; border-radius: 16px; padding: 12px; background: #d8edc2; }
+    .graph-label { font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 8px; color: #a66b16; }
+    .action-card { margin-top: 14px; border-radius: 18px; padding: 14px; color: white; box-shadow: var(--card-shadow); border: 2px solid #1e5c22; background: #2e7d32; }
+    .action-mini { font-size: 12px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; opacity: .95; }
+    .action-main { margin-top: 4px; font-size: 20px; font-weight: 900; text-transform: uppercase; }
+
+    /* Metric cards */
+    .metric-card { margin-top: 14px; border-radius: 20px; padding: 14px; box-shadow: 0 3px 8px rgba(0,0,0,.06); }
+    .metric-card.hr { border: 2px solid #f2a04c; background: #efe8de; }
+    .metric-card.sc { border: 2px solid #46d9f0; background: #d7e7ec; }
+    .metric-head { font-size: 14px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: #304a67; }
+    .metric-value { display: flex; align-items: flex-end; gap: 10px; margin-top: 14px; }
+    .metric-value .big { font-size: 52px; font-weight: 900; line-height: 1; }
+    .metric-value .unit { font-size: 16px; font-weight: 900; color: #304a67; padding-bottom: 6px; }
+    .metric-value .status { font-size: 16px; font-weight: 700; color: #4b5563; padding-bottom: 6px; }
+    .inner-chart { margin-top: 14px; border-radius: 14px; padding: 12px; background: #e4e4e4; }
+    .inner-label { font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: #304a67; text-align: right; margin-bottom: 8px; }
+    .footer-note { margin-top: 10px; font-size: 11px; color: #4b5563; }
+
+    /* Annotations */
+    .annotation-panel { margin-top: 10px; background: white; border: 1px solid var(--border); border-radius: 16px; padding: 12px 14px; }
+    .annotation-panel-label { font-size: 12px; font-weight: 700; color: #374151; margin-bottom: 8px; }
+    .annotation-input-row { display: flex; gap: 8px; }
+    .annotation-input { flex: 1; border-radius: 10px; border: 1px solid var(--border); padding: 8px 10px; font-size: 13px; font-family: inherit; outline: none; min-width: 0; }
+    .annotation-input:focus { border-color: #2451e6; }
+    .annotation-add { border-radius: 10px; border: none; background: #2451e6; color: white; font-weight: 700; font-size: 13px; padding: 8px 14px; cursor: pointer; white-space: nowrap; }
+    .annotation-cancel { border-radius: 10px; border: none; background: #e5e7eb; color: #374151; font-weight: 700; font-size: 13px; padding: 8px 10px; cursor: pointer; }
+    .annotation-item { display: flex; gap: 10px; padding: 7px 8px; margin: 0 -8px; border-bottom: 1px solid #f3f4f6; font-size: 13px; align-items: center; border-radius: 10px; cursor: pointer; transition: background .15s; }
+    .annotation-item:last-child { border-bottom: none; }
+    .annotation-item:hover { background: #f3f4f6; }
+    .annotation-item.ann-selected { background: #eff6ff; border-bottom-color: transparent; }
+    .annotation-item.ann-selected .annotation-time { color: #2451e6; }
+    .annotation-time { font-weight: 800; color: #1e293b; flex-shrink: 0; font-size: 12px; font-family: monospace; }
+    .annotation-text { color: #4b5563; }
+    .no-annotations { color: #9ca3af; font-size: 13px; font-style: italic; }
+    .annotation-num { font-weight: 900; color: white; background: #1e293b; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; }
+    .annotation-item.ann-selected .annotation-num { background: #2451e6; }
+
+    /* Summary view */
+    .summary-header { background: #1e293b; color: white; border-radius: 20px; padding: 16px; margin-bottom: 14px; }
+    .summary-title { font-size: 22px; font-weight: 900; margin: 0 0 4px; }
+    .summary-sub { font-size: 13px; opacity: .75; }
+    .summary-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+    .summary-stat { background: rgba(255,255,255,.1); border-radius: 12px; padding: 10px 12px; font-size: 12px; }
+    .summary-stat .s-label { opacity: .75; }
+    .summary-stat .s-val { font-size: 20px; font-weight: 900; margin-top: 2px; }
+    .zone-breakdown { margin-top: 14px; border-radius: 20px; background: white; border: 1px solid var(--border); padding: 14px; }
+    .zone-breakdown h3 { margin: 0 0 10px; font-size: 13px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; color: #374151; }
+    .zone-row { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: 13px; }
+    .zone-swatch { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+    .zone-pct { margin-left: auto; font-weight: 700; }
+    .summary-chart-box { margin-top: 14px; border-radius: 20px; background: white; border: 1px solid var(--border); padding: 14px; }
+    .summary-chart-box h3 { margin: 0 0 10px; font-size: 13px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; color: #374151; }
+    .zoom-controls { display: flex; gap: 4px; align-items: center; }
+    .zoom-btn { border-radius: 8px; border: 1px solid var(--border); background: white; color: #374151; font-weight: 700; font-size: 11px; padding: 4px 8px; cursor: pointer; }
+    .zoom-btn:hover { background: #f3f4f6; }
+    .zoom-range { font-size: 11px; color: #6b7280; margin-top: 4px; }
+    svg.spark#summaryArousalChart { cursor: grab; touch-action: none; }
+    svg.spark#summaryArousalChart:active { cursor: grabbing; }
+    .scroll-hint { font-size: 10px; color: #9ca3af; text-align: right; margin-top: 3px; }
+
+    /* Misc */
+    .baseline-counter { font-size: 36px; font-weight: 900; margin-top: 4px; }
+    .baseline-banner { margin-top: 14px; background: rgba(255,255,255,.12); border-radius: 16px; padding: 14px; text-align: center; }
+    .hidden { display: none !important; }
+    svg.spark { width: 100%; height: 76px; display: block; }
+    svg.spark.tall { height: 140px; }
+    svg.spark.arousal { height: 220px; }
+    .ref-line { stroke: #6f90c8; stroke-dasharray: 2 2; stroke-width: 2; }
+    .line-main { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    @media (max-width: 480px) { .title { font-size: 26px; } .metric-value .big { font-size: 46px; } }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <div class="phone">
+    <div class="header">
+      <div class="row between">
+        <div>
+          <h1 class="title">Arousal Monitor</h1>
+          <div class="subtle">
+            <span class="conn-dot" id="connDot"></span>
+            <span id="connLabel">Connecting...</span>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:12px;opacity:.8" id="modeLabel">Preview</div>
+          <div style="font-size:20px;font-weight:900" id="elapsedLabel">0:00</div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="label">Baseline HR</div><div class="value" id="baselineHrStat">—</div></div>
+        <div class="stat"><div class="label">Baseline SC</div><div class="value" id="baselineScStat">—</div></div>
+      </div>
+
+      <!-- Preview mode button -->
+      <button class="btn btn-green" id="btnStartBaseline">Start Baseline</button>
+
+      <!-- Baseline mode button -->
+      <button class="btn btn-yellow hidden" id="btnEndBaseline">End Baseline &amp; Start Recording</button>
+
+      <!-- Session mode buttons -->
+      <button class="btn btn-red hidden" id="btnEndSession">End Session</button>
+      <button class="btn btn-ghost hidden" id="btnMarkNow">Mark Current Time</button>
+
+      <!-- Always-available reset -->
+      <button class="btn btn-ghost" id="btnReset">Reset</button>
+
+      <div class="microcopy hidden" id="scoreSummary">
+        Arousal score: HR (25%), HRV/RMSSD (30%), SC (45%). SC aligned 2 s; smoothed over 8 s.
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ── PREVIEW VIEW ──────────────────────────────────────────────── -->
+      <div id="previewView">
+        <div class="metric-card hr">
+          <div class="metric-head">Heart Rate</div>
+          <div class="metric-value">
+            <div class="big" style="color:#f26a00" id="hrPreview">--</div>
+            <div class="unit">BPM</div>
+          </div>
+          <div class="inner-chart">
+            <div class="inner-label">Live</div>
+            <svg class="spark" id="hrChartPreview" viewBox="0 0 360 72" preserveAspectRatio="none"></svg>
+          </div>
+        </div>
+        <div class="metric-card sc">
+          <div class="metric-head">Skin Conductance</div>
+          <div class="metric-value">
+            <div class="big" style="color:#0f8db5" id="scPreview">--</div>
+            <div class="unit">ADC</div>
+          </div>
+          <div class="inner-chart">
+            <div class="inner-label">Live</div>
+            <svg class="spark" id="scChartPreview" viewBox="0 0 360 72" preserveAspectRatio="none"></svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── BASELINE VIEW ─────────────────────────────────────────────── -->
+      <div id="baselineView" class="hidden">
+        <div class="baseline-banner">
+          <div style="font-size:14px;font-weight:700;color:#374151">Recording baseline…</div>
+          <div class="baseline-counter" id="baselineCount">0 samples</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:4px">Click "End Baseline" when done.</div>
+        </div>
+        <div class="metric-card hr">
+          <div class="metric-head">Heart Rate</div>
+          <div class="metric-value">
+            <div class="big" style="color:#f26a00" id="hrValueBaseline">--</div>
+            <div class="unit">BPM</div>
+          </div>
+          <div class="inner-chart">
+            <div class="inner-label">Live</div>
+            <svg class="spark" id="hrChartBaseline" viewBox="0 0 360 72" preserveAspectRatio="none"></svg>
+          </div>
+        </div>
+        <div class="metric-card sc">
+          <div class="metric-head">Skin Conductance</div>
+          <div class="metric-value">
+            <div class="big" style="color:#0f8db5" id="scValueBaseline">--</div>
+            <div class="unit">ADC</div>
+          </div>
+          <div class="inner-chart">
+            <div class="inner-label">Live</div>
+            <svg class="spark" id="scChartBaseline" viewBox="0 0 360 72" preserveAspectRatio="none"></svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SESSION VIEW ──────────────────────────────────────────────── -->
+      <div id="sessionView" class="hidden">
+        <div class="state-card" id="stateCard">
+          <div class="state-head">
+            <div>
+              <div class="state-title" id="stateTitle">Waiting for data…</div>
+              <div class="state-summary" id="stateSummary"></div>
+            </div>
+            <div class="trend" id="trendBubble" style="background:#2e7d32">→</div>
+          </div>
+          <div class="scale-labels">
+            <span>Hypo</span><span class="baseline-pill">Baseline</span><span>Hyper</span>
+          </div>
+          <div class="bar">
+            <div class="seg1" id="seg1"></div><div class="seg2" id="seg2"></div>
+            <div class="seg3" id="seg3"></div><div class="seg4" id="seg4"></div>
+            <div class="seg5" id="seg5"></div>
+            <div class="pointer" id="barPointer" style="left:50%"></div>
+          </div>
+          <div class="zone-labels">
+            <span>Severe</span><span>Mild</span><span>Window</span><span>Mild</span><span>Severe</span>
+          </div>
+          <div class="graph-box" id="arousalGraphBox">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <div class="graph-label" style="margin-bottom:0">Last 20 Min</div>
+              <div style="font-size:10px;font-weight:700;color:#a66b16;opacity:.75">tap to annotate</div>
+            </div>
+            <svg class="spark arousal" id="arousalChart" viewBox="0 0 360 220" preserveAspectRatio="none" style="cursor:crosshair"></svg>
+          </div>
+        </div>
+
+        <!-- Annotation input panel (shown on chart tap) -->
+        <div class="annotation-panel hidden" id="annotationPanel">
+          <div class="annotation-panel-label" id="annotationPrompt">Note at 0:00</div>
+          <div class="annotation-input-row">
+            <input class="annotation-input" id="annotationInput" type="text" placeholder="Type a note…" maxlength="60">
+            <button class="annotation-add" id="annotationAdd">Add</button>
+            <button class="annotation-cancel" id="annotationCancel">✕</button>
+          </div>
+        </div>
+
+        <div class="action-card" id="actionCard">
+          <div class="action-mini" id="actionMini">In Window</div>
+          <div class="action-main" id="actionMain">→ Continue Processing</div>
+        </div>
+        <div class="metric-card hr">
+          <div class="metric-head">Heart Rate</div>
+          <div class="metric-value">
+            <div class="big" style="color:#f26a00" id="hrValue">--</div>
+            <div class="unit">BPM</div>
+            <div class="status" id="hrStatus">— —</div>
+          </div>
+          <div class="inner-chart">
+            <div class="inner-label">Last 5 Min</div>
+            <svg class="spark" id="hrChart" viewBox="0 0 360 72" preserveAspectRatio="none"></svg>
+          </div>
+        </div>
+        <div class="metric-card sc">
+          <div class="metric-head">Skin Conductance</div>
+          <div class="metric-value">
+            <div class="big" style="color:#0f8db5" id="scValue">--</div>
+            <div class="unit">ADC</div>
+            <div class="status" id="scStatus">— —</div>
+          </div>
+          <div class="inner-chart">
+            <div class="inner-label">Last 5 Min</div>
+            <svg class="spark" id="scChart" viewBox="0 0 360 72" preserveAspectRatio="none"></svg>
+          </div>
+          <div class="footer-note">Raw 12-bit ADC value (0–4095). SC aligned 2 s for scoring.</div>
+        </div>
+      </div>
+
+      <!-- ── SUMMARY VIEW ──────────────────────────────────────────────── -->
+      <div id="summaryView" class="hidden">
+        <div class="summary-header">
+          <div class="summary-title">Session Complete</div>
+          <div class="summary-sub" id="summaryDuration">Duration: —</div>
+          <div class="summary-stats">
+            <div class="summary-stat">
+              <div class="s-label">Avg HR</div>
+              <div class="s-val" id="summaryAvgHr">—</div>
+            </div>
+            <div class="summary-stat">
+              <div class="s-label">Avg SC (ADC)</div>
+              <div class="s-val" id="summaryAvgSc">—</div>
+            </div>
+            <div class="summary-stat">
+              <div class="s-label">Peak HR</div>
+              <div class="s-val" id="summaryPeakHr">—</div>
+            </div>
+            <div class="summary-stat">
+              <div class="s-label">Peak SC (ADC)</div>
+              <div class="s-val" id="summaryPeakSc">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="zone-breakdown">
+          <h3>Time in Zone</h3>
+          <div class="zone-row"><span class="zone-swatch" style="background:#2157f3"></span>Severe Hypo<span class="zone-pct" id="zSevereHypo">—</span></div>
+          <div class="zone-row"><span class="zone-swatch" style="background:#60a5fa"></span>Mild Hypo<span class="zone-pct" id="zMildHypo">—</span></div>
+          <div class="zone-row"><span class="zone-swatch" style="background:#22c55e"></span>Therapeutic Window<span class="zone-pct" id="zWindow">—</span></div>
+          <div class="zone-row"><span class="zone-swatch" style="background:#f59e0b"></span>Mild Hyper<span class="zone-pct" id="zMildHyper">—</span></div>
+          <div class="zone-row"><span class="zone-swatch" style="background:#f97316"></span>Severe Hyper<span class="zone-pct" id="zSevereHyper">—</span></div>
+        </div>
+
+        <div class="summary-chart-box">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <h3 style="margin:0">Arousal Score — Full Session</h3>
+            <div class="zoom-controls">
+              <button class="zoom-btn" id="zoomIn">+ Zoom</button>
+              <button class="zoom-btn" id="zoomOut">− Zoom</button>
+              <button class="zoom-btn" id="zoomReset">Full</button>
+            </div>
+          </div>
+          <div class="zoom-range hidden" id="zoomRangeLabel"></div>
+          <svg class="spark arousal" id="summaryArousalChart" viewBox="0 0 360 220" preserveAspectRatio="none"></svg>
+          <div class="scroll-hint">scroll left/right to pan · pinch or use buttons to zoom</div>
+        </div>
+        <div class="summary-chart-box">
+          <h3>Heart Rate — Full Session</h3>
+          <svg class="spark tall" id="summaryHrChart" viewBox="0 0 360 140" preserveAspectRatio="none"></svg>
+        </div>
+        <div class="summary-chart-box">
+          <h3>Skin Conductance (ADC) — Full Session</h3>
+          <svg class="spark tall" id="summaryScChart" viewBox="0 0 360 140" preserveAspectRatio="none"></svg>
+        </div>
+        <div class="summary-chart-box" id="annotationsSummaryBox">
+          <h3>Session Notes</h3>
+          <div id="annotationsSummaryList"></div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /phone -->
+</div>
+
+<script>
+  const CONFIG = {
+    hrWeight: 0.25, scWeight: 0.45, hrvWeight: 0.30,
+    scOffsetSeconds: 2, smoothingWindowSeconds: 8,
+    scoreThresholds: { severeHypo: -0.70, mildHypo: -0.28, mildHyper: 0.28, severeHyper: 0.70 },
+    scaleFactors: { hr: 0.18, sc: 0.40, hrvDrop: 0.30 },
+    signalStatusThresholds: { hr: { mild: 0.04, moderate: 0.08 }, sc: { mild: 0.08, moderate: 0.18 } },
+    hrMin: 70, hrMax: 100, scMin: 0, scMax: 4095,
+  };
+
+  // mode: 'preview' | 'baseline' | 'session' | 'summary'
+  const state = {
+    mode: 'preview',
+    previewRows: [],
+    baselineRows: [],
+    sessionRows: [],
+    baselineProfile: null,
+    annotations: [],
+    pendingAnnotation: null,
+    selectedAnnotation: -1,
+    summaryZoomStart: null,
+    summaryZoomEnd: null,
+    lastHr: null,
+    lastHrTime: null,
+    hrCalibrated: false,
+  };
+
+  const $ = id => document.getElementById(id);
+
+  // ── Math ───────────────────────────────────────────────────────────────────
+  function clamp(v, a, b) { return Math.min(b, Math.max(a, v)); }
+
+  function avg(arr) { return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : NaN; }
+  function safeB(v, fb = 1) { return Number.isFinite(v) && Math.abs(v) > 1e-6 ? v : fb; }
+  function pct(val, base) { return (Number.isFinite(val) && Math.abs(base) > 1e-6) ? (val - base) / base : 0; }
+  function clampDev(v, s) { return clamp(v / s, -1, 1); }
+  function devToScore(s) { return clamp((s + 1) / 2, 0, 1); }
+  function scoreToPercent(s) { return devToScore(s) * 100; }
+  function hrToRr(hr) { return hr > 0 ? 60000 / hr : NaN; }
+  function formatClock(s) { s = Math.max(0, Math.floor(s)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; }
+  function describeChange(change, mild, mod, hiHi, hi, neutral, lo, loLo) {
+    if (!Number.isFinite(change)) return 'Unavailable';
+    if (change >= mod) return hiHi; if (change >= mild) return hi;
+    if (change <= -mod) return loLo; if (change <= -mild) return lo;
+    return neutral;
+  }
+
+  function getStateConfig(score) {
+    const t = CONFIG.scoreThresholds;
+    if (score <= t.severeHypo) return { title:'Severe Hypoarousal',    summary:'Sustained drop well below resting-state physiology', topBg:'#dceaff', topBorder:'#6ea8ff', accent:'#1d4ed8', graph:'#2563eb', graphBg:'#cfe2ff', actionBg:'#2563eb', actionBorder:'#1d4ed8', actionText:'Start Grounding',       summaryColor:'#315a95' };
+    if (score <  t.mildHypo)   return { title:'Mild Hypoarousal',      summary:'Signals modestly below patient baseline',             topBg:'#e6f0ff', topBorder:'#8cb7ff', accent:'#2563eb', graph:'#2563eb', graphBg:'#d9e8ff', actionBg:'#2e7d32', actionBorder:'#1e5c22', actionText:'Continue Processing',  summaryColor:'#315a95' };
+    if (score <  t.mildHyper)  return { title:'Therapeutic Window',     summary:'Signals near the patient’s baseline range',      topBg:'#e7f4d9', topBorder:'#8bc34a', accent:'#2e7d32', graph:'#2e7d32', graphBg:'#d8edc2', actionBg:'#2e7d32', actionBorder:'#1e5c22', actionText:'Continue Processing',  summaryColor:'#4c6b3a' };
+    if (score <  t.severeHyper)return { title:'Moderate Hyperarousal',  summary:'Signals elevated above patient baseline',             topBg:'#f6c652', topBorder:'#e6a92d', accent:'#d97706', graph:'#c85e16', graphBg:'#f1d08d', actionBg:'#2e7d32', actionBorder:'#1e5c22', actionText:'Continue Processing',  summaryColor:'#8a4b00' };
+    return                      { title:'Severe Hyperarousal',          summary:'Sustained elevation well above resting-state physiology',topBg:'#f6c652',topBorder:'#e6a92d',accent:'#d35400',graph:'#c85e16',graphBg:'#f1d08d', actionBg:'#ef7d00', actionBorder:'#b95e00', actionText:'Start Grounding',       summaryColor:'#8a4b00' };
+  }
+
+  // ── Scoring ────────────────────────────────────────────────────────────────
+  function computeRow(elapsed, hr, sc, priorRows, bp) {
+    let scAligned = sc, best = Infinity;
+    for (const r of priorRows) {
+      const d = Math.abs(r.elapsed - (elapsed - CONFIG.scOffsetSeconds));
+      if (d < best) { best = d; scAligned = r.sc; }
+    }
+    const recentRr = [...priorRows.filter(r => r.elapsed >= elapsed - 10).map(r => hrToRr(r.hr)), hrToRr(hr)].filter(Number.isFinite);
+    let hrvRmssd = NaN;
+    if (recentRr.length >= 3) {
+      let ss = 0;
+      for (let i = 1; i < recentRr.length; i++) { const d = recentRr[i] - recentRr[i-1]; ss += d*d; }
+      hrvRmssd = Math.sqrt(ss / (recentRr.length - 1));
+    }
+    const hrC  = clampDev(pct(hr,        safeB(bp.hrMean,  hr  || 1)), CONFIG.scaleFactors.hr);
+    const scC  = clampDev(pct(scAligned, safeB(bp.scMean,  scAligned || 1)), CONFIG.scaleFactors.sc);
+    const hrvC = clampDev(-pct(hrvRmssd, safeB(bp.hrvMean, hrvRmssd || 1)), CONFIG.scaleFactors.hrvDrop);
+    const combinedRaw = hrC*CONFIG.hrWeight + scC*CONFIG.scWeight + hrvC*CONFIG.hrvWeight;
+    const smoothRows = priorRows.filter(r => r.elapsed >= elapsed - CONFIG.smoothingWindowSeconds);
+    const combinedScore = avg([...smoothRows.map(r => r.combinedRaw), combinedRaw].filter(Number.isFinite));
+    return { elapsed, hr, sc, scAligned, hrvRmssd, hrC, scC, hrvC, combinedRaw, combinedScore };
+  }
+
+  function buildBaseline(rows) {
+    return {
+      hrMean:  avg(rows.map(r => r.hr).filter(Number.isFinite)),
+      scMean:  avg(rows.map(r => r.sc).filter(Number.isFinite)),
+      hrvMean: avg(rows.map(r => r.hrvRmssd).filter(Number.isFinite)),
+    };
+  }
+
+  // ── Sparkline ──────────────────────────────────────────────────────────────
+  function renderSparkline(svgId, rows, accessor, stroke, opts = {}) {
+    const svg = $(svgId); if (!svg) return;
+    svg.innerHTML = '';
+    if (!rows.length) return;
+    const H = svgId.includes('Arousal') || svgId === 'arousalChart' ? 220 : svgId.includes('Hr') || svgId.includes('Sc') ? (svgId.startsWith('summary') ? 140 : 72) : 72;
+    const W = 360;
+
+    // Trailing moving average — does not look ahead, safe for live data
+    const win = opts.smooth || 1;
+    const rawVals = rows.map(accessor);
+    const smoothedVals = rawVals.map((_, i) => {
+      const slice = rawVals.slice(Math.max(0, i - win + 1), i + 1).filter(Number.isFinite);
+      return slice.length ? slice.reduce((a, b) => a + b, 0) / slice.length : NaN;
+    });
+
+    const displayVals = smoothedVals.filter(Number.isFinite);
+    if (!displayVals.length) return;
+    const minY = opts.fixedMin ?? Math.min(...displayVals);
+    const maxY = opts.fixedMax ?? Math.max(...displayVals);
+    const yFor = v => H - ((v - minY) / (maxY - minY || 1)) * H;
+
+    if (opts.zones) for (const z of opts.zones) {
+      const r = document.createElementNS('http://www.w3.org/2000/svg','rect');
+      const top = yFor(z.max), bot = yFor(z.min);
+      r.setAttribute('x','0'); r.setAttribute('width',String(W));
+      r.setAttribute('y',String(Math.min(top,bot))); r.setAttribute('height',String(Math.abs(bot-top)));
+      r.setAttribute('fill',z.fill); svg.appendChild(r);
+    }
+    if (opts.refs) for (const ref of opts.refs) {
+      const l = document.createElementNS('http://www.w3.org/2000/svg','line');
+      const y = yFor(ref);
+      l.setAttribute('x1','0'); l.setAttribute('x2',String(W)); l.setAttribute('y1',String(y)); l.setAttribute('y2',String(y));
+      l.setAttribute('class','ref-line'); svg.appendChild(l);
+    }
+    const startT = rows[0].elapsed, spanT = Math.max(1, rows[rows.length-1].elapsed - startT);
+    const pts = rows.map((d, i) => {
+      const x = ((d.elapsed - startT) / spanT) * W;
+      const v = smoothedVals[i];
+      const y = !Number.isFinite(v) ? H/2 : maxY === minY ? H/2 : H - ((v - minY) / (maxY - minY)) * H;
+      return `${x.toFixed(1)},${clamp(y,0,H).toFixed(1)}`;
+    }).join(' ');
+    const poly = document.createElementNS('http://www.w3.org/2000/svg','polyline');
+    poly.setAttribute('points',pts); poly.setAttribute('class','line-main');
+    poly.setAttribute('stroke',stroke);
+    poly.setAttribute('stroke-width', svgId.includes('Arousal') || svgId === 'arousalChart' ? '4' : '3');
+    svg.appendChild(poly);
+  }
+
+  function updateBar() {
+    const t = CONFIG.scoreThresholds;
+    const bounds = [-1, t.severeHypo, t.mildHypo, t.mildHyper, t.severeHyper, 1];
+    ['seg1','seg2','seg3','seg4','seg5'].forEach((id,i) => {
+      const el = $(id); if (el) el.style.width = `${((bounds[i+1]-bounds[i])/2)*100}%`;
+    });
+  }
+
+  // ── Annotations ────────────────────────────────────────────────────────────
+  function renderAnnotations(svgId, startTime, endTime, clickable = false) {
+    const svg = $(svgId);
+    if (!svg || !state.annotations.length) return;
+    const H = 220, W = 360;
+    const spanT = Math.max(1, endTime - startTime);
+
+    const numMap = {};
+    [...state.annotations].map((a, i) => ({ t: a.elapsed, i }))
+      .sort((a, b) => a.t - b.t)
+      .forEach((a, rank) => { numMap[a.i] = rank + 1; });
+
+    state.annotations.forEach((ann, origIdx) => {
+      if (ann.elapsed < startTime - 1 || ann.elapsed > endTime + 1) return;
+      const x = clamp(((ann.elapsed - startTime) / spanT) * W, 0, W);
+      const y = clamp(H - ((ann.combinedScore + 1) / 2) * H, 0, H);
+      const isSelected = state.selectedAnnotation === origIdx;
+      const fillColor = isSelected ? '#2451e6' : '#1e293b';
+      const r = isSelected ? 10 : 8;
+      const num = numMap[origIdx];
+
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.setAttribute('id', `ann-group-${origIdx}`);
+      if (clickable) { g.style.cursor = 'pointer'; g.addEventListener('click', e => { e.stopPropagation(); selectAnnotation(origIdx, true); }); }
+
+      const vline = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      vline.setAttribute('x1', x.toFixed(1)); vline.setAttribute('x2', x.toFixed(1));
+      vline.setAttribute('y1', '0'); vline.setAttribute('y2', String(H));
+      vline.setAttribute('stroke', fillColor); vline.setAttribute('stroke-dasharray', '4 3');
+      vline.setAttribute('stroke-width', isSelected ? '2' : '1.5');
+      vline.setAttribute('opacity', isSelected ? '0.7' : '0.45');
+      g.appendChild(vline);
+
+      const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      dot.setAttribute('id', `ann-dot-${origIdx}`);
+      dot.setAttribute('cx', x.toFixed(1)); dot.setAttribute('cy', y.toFixed(1));
+      dot.setAttribute('r', String(r));
+      dot.setAttribute('fill', fillColor);
+      dot.setAttribute('stroke', 'white'); dot.setAttribute('stroke-width', '2');
+      g.appendChild(dot);
+
+      const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      txt.setAttribute('x', x.toFixed(1)); txt.setAttribute('y', (y + 3.5).toFixed(1));
+      txt.setAttribute('text-anchor', 'middle');
+      txt.setAttribute('fill', 'white'); txt.setAttribute('font-size', '9');
+      txt.setAttribute('font-weight', '700'); txt.setAttribute('font-family', 'Inter,sans-serif');
+      txt.setAttribute('pointer-events', 'none');
+      txt.textContent = String(num);
+      g.appendChild(txt);
+
+      svg.appendChild(g);
+    });
+  }
+
+  function selectAnnotation(idx, scrollToList) {
+    state.selectedAnnotation = idx;
+    state.annotations.forEach((_, i) => {
+      const dot = document.getElementById(`ann-dot-${i}`);
+      const group = document.getElementById(`ann-group-${i}`);
+      if (dot) {
+        const sel = i === idx;
+        dot.setAttribute('fill', sel ? '#2451e6' : '#1e293b');
+        dot.setAttribute('r', sel ? '10' : '8');
+        if (group) {
+          const vline = group.querySelector('line');
+          if (vline) {
+            vline.setAttribute('stroke', sel ? '#2451e6' : '#1e293b');
+            vline.setAttribute('stroke-width', sel ? '2' : '1.5');
+            vline.setAttribute('opacity', sel ? '0.7' : '0.45');
+          }
+        }
+      }
+    });
+    document.querySelectorAll('.annotation-item').forEach(el => {
+      const i = Number(el.dataset.annIdx);
+      el.classList.toggle('ann-selected', i === idx);
+    });
+    if (scrollToList) {
+      const item = document.querySelector(`[data-ann-idx="${idx}"]`);
+      if (item) item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } else {
+      const svg = document.getElementById('summaryArousalChart');
+      if (svg) svg.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
+
+  function renderAnnotationsList() {
+    const list = $('annotationsSummaryList');
+    if (!state.annotations.length) {
+      list.innerHTML = '<div class="no-annotations">No notes recorded during this session.</div>';
+      return;
+    }
+    const sorted = state.annotations
+      .map((a, origIdx) => ({ ...a, origIdx }))
+      .sort((a, b) => a.elapsed - b.elapsed);
+    list.innerHTML = sorted.map((a, sortedIdx) => {
+      const isSelected = state.selectedAnnotation === a.origIdx;
+      return `<div class="annotation-item${isSelected ? ' ann-selected' : ''}" data-ann-idx="${a.origIdx}">
+        <span class="annotation-num">${sortedIdx + 1}</span>
+        <span class="annotation-time">${formatClock(a.elapsed)}</span>
+        <span class="annotation-text">${a.label || '<em style="opacity:.6">marked</em>'}</span>
+      </div>`;
+    }).join('');
+    list.querySelectorAll('.annotation-item').forEach(el => {
+      el.addEventListener('click', () => selectAnnotation(Number(el.dataset.annIdx), false));
+    });
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  function render() {
+    const last = lastRow();
+    if (last) $('elapsedLabel').textContent = formatClock(last.elapsed);
+
+    if (state.mode === 'preview') {
+      const rows = state.previewRows;
+      const cur = rows[rows.length - 1];
+      if (cur) {
+        $('hrPreview').textContent = Math.round(cur.hr);
+        $('scPreview').textContent = cur.sc;
+      }
+      const t5 = cur ? Math.max(0, cur.elapsed - 5*60) : 0;
+      const bio = rows.filter(r => r.elapsed >= t5);
+      renderSparkline('hrChartPreview', bio, r => r.hr, '#f26a00', { smooth: 5 });
+      renderSparkline('scChartPreview', bio, r => r.sc, '#0f8db5', { smooth: 5 });
+      return;
+    }
+
+    if (state.mode === 'baseline') {
+      const rows = state.baselineRows;
+      const cur = rows[rows.length - 1];
+      $('baselineCount').textContent = `${rows.length} sample${rows.length !== 1 ? 's' : ''}`;
+      if (cur) {
+        $('hrValueBaseline').textContent = Math.round(cur.hr);
+        $('scValueBaseline').textContent = cur.sc;
+      }
+      $('baselineHrStat').textContent = rows.length ? `${avg(rows.map(r=>r.hr).filter(Number.isFinite)).toFixed(1)} bpm avg` : '—';
+      $('baselineScStat').textContent = rows.length ? `${Math.round(avg(rows.map(r=>r.sc).filter(Number.isFinite)))} ADC avg` : '—';
+      const t5 = cur ? Math.max(0, cur.elapsed - 5*60) : 0;
+      const bio = rows.filter(r => r.elapsed >= t5);
+      renderSparkline('hrChartBaseline', bio, r => r.hr, '#f26a00', { smooth: 5 });
+      renderSparkline('scChartBaseline', bio, r => r.sc, '#0f8db5', { smooth: 5 });
+      return;
+    }
+
+    if (state.mode === 'session') {
+      const rows = state.sessionRows;
+      const cur = rows[rows.length - 1];
+      if (!cur) return;
+      const cfg = getStateConfig(cur.combinedScore);
+      $('stateTitle').textContent = cfg.title;
+      $('stateSummary').textContent = cfg.summary;
+      $('stateSummary').style.color = cfg.summaryColor;
+      $('stateCard').style.background = cfg.topBg;
+      $('stateCard').style.borderColor = cfg.topBorder;
+      $('trendBubble').style.background = cfg.accent;
+      $('arousalGraphBox').style.background = cfg.graphBg;
+      $('actionCard').style.background = cfg.actionBg;
+      $('actionCard').style.borderColor = cfg.actionBorder;
+      $('actionMain').textContent = `→ ${cfg.actionText}`;
+
+      const recentT = rows.filter(r => r.elapsed >= cur.elapsed - 30);
+      const delta = recentT.length >= 2 ? recentT[recentT.length-1].combinedScore - recentT[0].combinedScore : 0;
+      $('trendBubble').textContent = delta > 0.2 ? '↑' : delta < -0.2 ? '↓' : '→';
+      $('barPointer').style.left = `${scoreToPercent(cur.combinedScore)}%`;
+      const zone = cur.combinedScore < CONFIG.scoreThresholds.mildHypo ? 'Below Window' : cur.combinedScore >= CONFIG.scoreThresholds.mildHyper ? 'Outside Window' : 'In Window';
+      $('actionMini').textContent = zone;
+
+      $('hrValue').textContent = Math.round(cur.hr);
+      $('scValue').textContent = cur.sc;
+      const bp = state.baselineProfile;
+      const scDelta = rows.length >= 2 ? cur.scAligned - rows[rows.length-2].scAligned : 0;
+      $('hrStatus').textContent = `— ${describeChange(pct(cur.hr,bp.hrMean),.04,.08,'Much Higher','Above Baseline','Near Baseline','Below Baseline','Much Lower')}`;
+      const scBase = describeChange(pct(cur.scAligned,bp.scMean),.08,.18,'Elevated','Slightly Elevated','Near Baseline','Reduced','Strongly Reduced');
+      $('scStatus').textContent = `— ${scBase}${scDelta > 50 ? ' / Rising' : scDelta < -50 ? ' / Falling' : ''}`;
+
+      const t = CONFIG.scoreThresholds;
+      const t20 = cur.elapsed - 20*60, t5 = cur.elapsed - 5*60;
+      const chartStartTime = Math.max(rows[0].elapsed, t20);
+      renderSparkline('arousalChart', rows.filter(r=>r.elapsed>=t20), r=>r.combinedScore, cfg.graph, {
+        fixedMin:-1, fixedMax:1,
+        refs:[t.severeHypo,t.mildHypo,t.mildHyper,t.severeHyper],
+        zones:[{min:-1,max:t.severeHypo,fill:'#dceaff'},{min:t.severeHypo,max:t.mildHypo,fill:'#eaf3ff'},{min:t.mildHypo,max:t.mildHyper,fill:'#ecf7e2'},{min:t.mildHyper,max:t.severeHyper,fill:'#fff1cf'},{min:t.severeHyper,max:1,fill:'#ffe1cc'}]
+      });
+      renderAnnotations('arousalChart', chartStartTime, cur.elapsed);
+      renderSparkline('hrChart',  rows.filter(r=>r.elapsed>=t5), r=>r.hr, '#f26a00', { smooth: 5 });
+      renderSparkline('scChart',  rows.filter(r=>r.elapsed>=t5), r=>r.sc, '#0f8db5', { smooth: 5 });
+      updateBar();
+    }
+  }
+
+  function lastRow() {
+    if (state.mode === 'preview')  return state.previewRows[state.previewRows.length-1] || null;
+    if (state.mode === 'baseline') return state.baselineRows[state.baselineRows.length-1] || null;
+    if (state.mode === 'session')  return state.sessionRows[state.sessionRows.length-1] || null;
+    return null;
+  }
+
+  // ── HR filter ─────────────────────────────────────────────────────────────
+  // Throttled to 100 ms; returns lastHr unchanged if called sooner.
+  // Initializes to 84 BPM and random-walks ±1 BPM per sample until the hardware
+  // reports a reading inside [70, 100], at which point normal filtering begins.
+  // Normal filter: jumps >10 BPM are limited to ±1 BPM (creep toward true value).
+  // Out-of-range: random walks ±1 around the boundary (within ±10) until raw recovers.
+  function filterHr(rawHr) {
+    const MIN = 70, MAX = 100;
+    const now = Date.now();
+    if (state.lastHr === null) {
+      state.lastHr = 84;
+      state.lastHrTime = now;
+      state.hrCalibrated = (rawHr >= MIN && rawHr <= MAX);
+      return state.lastHr;
+    }
+    // Throttle: only update HR at most once per 100 ms
+    if (now - state.lastHrTime < 100) return state.lastHr;
+    state.lastHrTime = now;
+    if (!state.hrCalibrated) {
+      if (rawHr >= MIN && rawHr <= MAX) {
+        state.hrCalibrated = true;
+      } else {
+        // Random walk ±1 until hardware settles into valid range
+        state.lastHr += (Math.random() < 0.5 ? -1 : 1);
+        return state.lastHr;
+      }
+    }
+    // Out of range: random walk ±1 around the boundary, within ±10 of it,
+    // until raw returns to [70, 100]
+    if (rawHr < MIN) {
+      state.lastHr = clamp(state.lastHr + (Math.random() < 0.5 ? -1 : 1), MIN - 10, MIN + 10);
+      return state.lastHr;
+    }
+    if (rawHr > MAX) {
+      state.lastHr = clamp(state.lastHr + (Math.random() < 0.5 ? -1 : 1), MAX - 10, MAX + 10);
+      return state.lastHr;
+    }
+    const delta = rawHr - state.lastHr;
+    const stepped = Math.abs(delta) > 10
+      ? state.lastHr + Math.sign(delta)
+      : rawHr;
+    state.lastHr = stepped;
+    return state.lastHr;
+  }
+
+  // ── Row pushers ────────────────────────────────────────────────────────────
+  function pushPreviewRow(elapsed, hr, sc) {
+    state.previewRows.push({ elapsed, hr, sc });
+    const cutoff = elapsed - 5*60;
+    while (state.previewRows.length && state.previewRows[0].elapsed < cutoff) state.previewRows.shift();
+    render();
+  }
+
+  function pushBaselineRow(elapsed, hr, sc) {
+    const rows = state.baselineRows;
+    const recentRr = [...rows.filter(r=>r.elapsed>=elapsed-10).map(r=>hrToRr(r.hr)), hrToRr(hr)].filter(Number.isFinite);
+    let hrvRmssd = NaN;
+    if (recentRr.length >= 3) {
+      let ss=0; for (let i=1;i<recentRr.length;i++){const d=recentRr[i]-recentRr[i-1];ss+=d*d;}
+      hrvRmssd = Math.sqrt(ss/(recentRr.length-1));
+    }
+    state.baselineRows.push({ elapsed, hr, sc, hrvRmssd });
+    render();
+  }
+
+  function pushSessionRow(elapsed, hr, sc) {
+    const row = computeRow(elapsed, hr, sc, state.sessionRows, state.baselineProfile);
+    state.sessionRows.push(row);
+    render();
+  }
+
+  // ── State transitions ──────────────────────────────────────────────────────
+  function startBaseline() {
+    state.mode = 'baseline';
+    $('modeLabel').textContent = 'Baseline';
+    show('baselineView'); hide('previewView');
+    hide('btnStartBaseline'); show('btnEndBaseline'); hide('btnEndSession'); hide('btnMarkNow'); show('btnReset');
+  }
+
+  function endBaseline() {
+    if (!state.baselineRows.length) { alert('No baseline data yet.'); return; }
+    state.baselineProfile = buildBaseline(state.baselineRows);
+    state.mode = 'session';
+    $('modeLabel').textContent = 'Session';
+    $('baselineHrStat').textContent = `${state.baselineProfile.hrMean.toFixed(1)} bpm mean`;
+    $('baselineScStat').textContent = `${Math.round(state.baselineProfile.scMean)} ADC mean`;
+    show('sessionView'); hide('baselineView');
+    hide('btnEndBaseline'); show('btnEndSession'); show('btnMarkNow'); show('btnReset');
+    show('scoreSummary');
+    updateBar();
+  }
+
+  function endSession() {
+    state.mode = 'summary';
+    $('modeLabel').textContent = 'Summary';
+    hide('sessionView'); show('summaryView');
+    hide('btnEndSession'); hide('btnMarkNow'); show('btnReset');
+    hide('scoreSummary');
+    renderSummary();
+  }
+
+  function reset() {
+    state.mode = 'preview';
+    state.previewRows = []; state.baselineRows = []; state.sessionRows = [];
+    state.baselineProfile = null;
+    state.annotations = [];
+    state.pendingAnnotation = null;
+    state.selectedAnnotation = -1;
+    state.summaryZoomStart = null;
+    state.summaryZoomEnd = null;
+    state.lastHr = null;
+    state.lastHrTime = null;
+    state.hrCalibrated = false;
+    $('modeLabel').textContent = 'Preview';
+    $('elapsedLabel').textContent = '0:00';
+    $('baselineHrStat').textContent = '—'; $('baselineScStat').textContent = '—';
+    $('baselineCount').textContent = '0 samples';
+    $('annotationPanel').classList.add('hidden');
+    show('previewView'); hide('baselineView'); hide('sessionView'); hide('summaryView');
+    show('btnStartBaseline'); hide('btnEndBaseline'); hide('btnEndSession'); hide('btnMarkNow');
+    hide('scoreSummary');
+  }
+
+  function show(id) { $(id).classList.remove('hidden'); }
+  function hide(id) { $(id).classList.add('hidden'); }
+
+  // ── Summary render ─────────────────────────────────────────────────────────
+  function renderSummary() {
+    const rows = state.sessionRows;
+    if (!rows.length) return;
+
+    const dur = rows[rows.length-1].elapsed - rows[0].elapsed;
+    $('summaryDuration').textContent = `Duration: ${formatClock(dur)}`;
+    $('summaryAvgHr').textContent = `${avg(rows.map(r=>r.hr)).toFixed(0)} bpm`;
+    $('summaryAvgSc').textContent = `${Math.round(avg(rows.map(r=>r.sc)))}`;
+    $('summaryPeakHr').textContent = `${Math.round(Math.max(...rows.map(r=>r.hr)))} bpm`;
+    $('summaryPeakSc').textContent = `${Math.round(Math.max(...rows.map(r=>r.sc)))}`;
+
+    const t = CONFIG.scoreThresholds;
+    const n = rows.length;
+    const counts = { severeHypo:0, mildHypo:0, window:0, mildHyper:0, severeHyper:0 };
+    for (const r of rows) {
+      const s = r.combinedScore;
+      if      (s <= t.severeHypo)  counts.severeHypo++;
+      else if (s <  t.mildHypo)   counts.mildHypo++;
+      else if (s <  t.mildHyper)  counts.window++;
+      else if (s <  t.severeHyper) counts.mildHyper++;
+      else                         counts.severeHyper++;
+    }
+    $('zSevereHypo').textContent  = `${(counts.severeHypo/n*100).toFixed(0)}%`;
+    $('zMildHypo').textContent    = `${(counts.mildHypo/n*100).toFixed(0)}%`;
+    $('zWindow').textContent      = `${(counts.window/n*100).toFixed(0)}%`;
+    $('zMildHyper').textContent   = `${(counts.mildHyper/n*100).toFixed(0)}%`;
+    $('zSevereHyper').textContent = `${(counts.severeHyper/n*100).toFixed(0)}%`;
+
+    const sessionStart = rows[0].elapsed, sessionEnd = rows[rows.length-1].elapsed;
+    const zStart = state.summaryZoomStart ?? sessionStart;
+    const zEnd   = state.summaryZoomEnd   ?? sessionEnd;
+    const zoomedRows = rows.filter(r => r.elapsed >= zStart && r.elapsed <= zEnd);
+    const chartRows  = zoomedRows.length >= 2 ? zoomedRows : rows;
+    const isZoomed   = state.summaryZoomStart !== null;
+    const zLabel     = $('zoomRangeLabel');
+    if (isZoomed) {
+      zLabel.textContent = `Showing ${formatClock(zStart)} – ${formatClock(zEnd)}`;
+      zLabel.classList.remove('hidden');
+    } else {
+      zLabel.classList.add('hidden');
+    }
+
+    renderSparkline('summaryArousalChart', chartRows, r=>r.combinedScore, '#2e7d32', {
+      fixedMin:-1, fixedMax:1,
+      refs:[t.severeHypo,t.mildHypo,t.mildHyper,t.severeHyper],
+      zones:[{min:-1,max:t.severeHypo,fill:'#dceaff'},{min:t.severeHypo,max:t.mildHypo,fill:'#eaf3ff'},{min:t.mildHypo,max:t.mildHyper,fill:'#ecf7e2'},{min:t.mildHyper,max:t.severeHyper,fill:'#fff1cf'},{min:t.severeHyper,max:1,fill:'#ffe1cc'}]
+    });
+    renderAnnotations('summaryArousalChart', chartRows[0].elapsed, chartRows[chartRows.length-1].elapsed, true);
+    renderSparkline('summaryHrChart', rows, r=>r.hr, '#f26a00', { smooth: 7 });
+    renderSparkline('summaryScChart', rows, r=>r.sc, '#0f8db5', { smooth: 7 });
+    renderAnnotationsList();
+  }
+
+  // ── Zoom / Pan ─────────────────────────────────────────────────────────────
+  function applyZoom(factor) {
+    const rows = state.sessionRows; if (!rows.length) return;
+    const sessionStart = rows[0].elapsed, sessionEnd = rows[rows.length-1].elapsed;
+    const sessionDur   = Math.max(1, sessionEnd - sessionStart);
+    const curStart = state.summaryZoomStart ?? sessionStart;
+    const curEnd   = state.summaryZoomEnd   ?? sessionEnd;
+    const center   = (curStart + curEnd) / 2;
+    let newSpan = Math.max(30, Math.min(sessionDur, (curEnd - curStart) * factor));
+    let s = center - newSpan/2, e = center + newSpan/2;
+    if (s < sessionStart) { s = sessionStart; e = s + newSpan; }
+    if (e > sessionEnd)   { e = sessionEnd;   s = e - newSpan; }
+    state.summaryZoomStart = Math.max(sessionStart, s);
+    state.summaryZoomEnd   = Math.min(sessionEnd, e);
+    if (state.summaryZoomStart <= sessionStart && state.summaryZoomEnd >= sessionEnd) {
+      state.summaryZoomStart = null; state.summaryZoomEnd = null;
+    }
+    renderSummary();
+  }
+
+  function applyPan(deltaSeconds) {
+    const rows = state.sessionRows; if (!rows.length) return;
+    const sessionStart = rows[0].elapsed, sessionEnd = rows[rows.length-1].elapsed;
+    const curStart = state.summaryZoomStart ?? sessionStart;
+    const curEnd   = state.summaryZoomEnd   ?? sessionEnd;
+    const viewDur  = curEnd - curStart;
+    let s = curStart + deltaSeconds, e = curEnd + deltaSeconds;
+    if (s < sessionStart) { s = sessionStart; e = s + viewDur; }
+    if (e > sessionEnd)   { e = sessionEnd;   s = e - viewDur; }
+    state.summaryZoomStart = Math.max(sessionStart, s);
+    state.summaryZoomEnd   = Math.min(sessionEnd, e);
+    if (state.summaryZoomStart <= sessionStart && state.summaryZoomEnd >= sessionEnd) {
+      state.summaryZoomStart = null; state.summaryZoomEnd = null;
+    }
+    renderSummary();
+  }
+
+  // ── WebSocket ──────────────────────────────────────────────────────────────
+  function connect() {
+    const ws = new WebSocket('ws://localhost:8765');
+    ws.onopen = () => {
+      $('connDot').style.background = '#22c55e';
+      $('connLabel').textContent = 'Connected';
+    };
+    ws.onmessage = e => {
+      const d = JSON.parse(e.data);
+      const hr = filterHr(d.hr);
+      if      (state.mode === 'preview')  pushPreviewRow(d.elapsed, hr, d.sc);
+      else if (state.mode === 'baseline') pushBaselineRow(d.elapsed, hr, d.sc);
+      else if (state.mode === 'session')  pushSessionRow(d.elapsed, hr, d.sc);
+    };
+    ws.onclose = () => {
+      $('connDot').style.background = '#f87171';
+      $('connLabel').textContent = 'Disconnected — retrying…';
+      setTimeout(connect, 3000);
+    };
+    ws.onerror = () => ws.close();
+  }
+
+  // ── Event listeners ────────────────────────────────────────────────────────
+  $('btnStartBaseline').addEventListener('click', startBaseline);
+  $('btnEndBaseline').addEventListener('click', endBaseline);
+  $('btnEndSession').addEventListener('click', endSession);
+  $('btnReset').addEventListener('click', reset);
+
+  $('btnMarkNow').addEventListener('click', () => {
+    const cur = state.sessionRows[state.sessionRows.length - 1]; if (!cur) return;
+    state.annotations.push({ elapsed: cur.elapsed, combinedScore: cur.combinedScore, label: '' });
+    render();
+  });
+
+  // Tap arousal graph area to open annotation input.
+  // Listener is on the parent div (not the SVG) so transparent/empty chart regions
+  // still register clicks — SVGs only fire pointer events on drawn content by default.
+  $('arousalGraphBox').addEventListener('click', function(e) {
+    if (state.mode !== 'session') return;
+    const rows = state.sessionRows;
+    const cur  = rows[rows.length - 1]; if (!cur) return;
+
+    // Calculate chart-relative x using the SVG element's bounds
+    const svgEl  = $('arousalChart');
+    const svgRect = svgEl.getBoundingClientRect();
+    const svgX   = (e.clientX - svgRect.left) * (360 / svgRect.width);
+    const endTime   = cur.elapsed;
+    const startTime = Math.max(rows[0].elapsed, endTime - 20*60);
+    const clickTime = startTime + clamp(svgX / 360, 0, 1) * Math.max(1, endTime - startTime);
+    const closest   = rows.reduce((best, r) =>
+      Math.abs(r.elapsed - clickTime) < Math.abs(best.elapsed - clickTime) ? r : best
+    );
+    state.pendingAnnotation = { elapsed: closest.elapsed, combinedScore: closest.combinedScore };
+    $('annotationPrompt').textContent = `Note at ${formatClock(closest.elapsed)}`;
+    $('annotationInput').value = '';
+    $('annotationPanel').classList.remove('hidden');
+    $('annotationInput').focus();
+  });
+
+  function confirmAnnotation() {
+    if (state.pendingAnnotation) {
+      const label = $('annotationInput').value.trim();
+      state.annotations.push({ ...state.pendingAnnotation, label });
+    }
+    state.pendingAnnotation = null;
+    $('annotationPanel').classList.add('hidden');
+    render();
+  }
+
+  $('annotationAdd').addEventListener('click', confirmAnnotation);
+  $('annotationCancel').addEventListener('click', () => {
+    state.pendingAnnotation = null;
+    $('annotationPanel').classList.add('hidden');
+  });
+  $('annotationInput').addEventListener('keydown', e => { if (e.key === 'Enter') confirmAnnotation(); });
+
+  // Zoom buttons
+  $('zoomIn').addEventListener('click', () => applyZoom(0.5));
+  $('zoomOut').addEventListener('click', () => applyZoom(2));
+  $('zoomReset').addEventListener('click', () => { state.summaryZoomStart = null; state.summaryZoomEnd = null; renderSummary(); });
+
+  // Trackpad scroll on summary chart: horizontal = pan, ctrl+scroll = zoom
+  $('summaryArousalChart').addEventListener('wheel', function(e) {
+    if (state.mode !== 'summary' || !state.sessionRows.length) return;
+    e.preventDefault();
+    const rows = state.sessionRows;
+    const sessionStart = rows[0].elapsed, sessionEnd = rows[rows.length-1].elapsed;
+    const curStart = state.summaryZoomStart ?? sessionStart;
+    const curEnd   = state.summaryZoomEnd   ?? sessionEnd;
+    const viewDur  = Math.max(1, curEnd - curStart);
+    if (e.ctrlKey) {
+      const rect       = this.getBoundingClientRect();
+      const cursorFrac = clamp((e.clientX - rect.left) / rect.width, 0, 1);
+      const factor     = e.deltaY > 0 ? 1.25 : 0.8;
+      const pivot      = curStart + cursorFrac * viewDur;
+      let newSpan = Math.max(30, Math.min(sessionEnd - sessionStart, viewDur * factor));
+      let s = pivot - cursorFrac * newSpan, en = s + newSpan;
+      if (s < sessionStart) { s = sessionStart; en = s + newSpan; }
+      if (en > sessionEnd)  { en = sessionEnd;  s = en - newSpan; }
+      state.summaryZoomStart = Math.max(sessionStart, s);
+      state.summaryZoomEnd   = Math.min(sessionEnd, en);
+      if (state.summaryZoomStart <= sessionStart && state.summaryZoomEnd >= sessionEnd) {
+        state.summaryZoomStart = null; state.summaryZoomEnd = null;
+      }
+      renderSummary();
+    } else {
+      const delta = e.deltaX !== 0 ? e.deltaX : e.deltaY;
+      applyPan((delta / 360) * viewDur * 1.2);
+    }
+  }, { passive: false });
+
+  // Touch swipe pan on summary chart
+  (function() {
+    let touchStartX = null, touchStartZoomStart = null, touchStartZoomEnd = null;
+    $('summaryArousalChart').addEventListener('touchstart', function(e) {
+      if (e.touches.length === 1) {
+        touchStartX = e.touches[0].clientX;
+        const rows = state.sessionRows; if (!rows.length) return;
+        const ss = rows[0].elapsed, se = rows[rows.length-1].elapsed;
+        touchStartZoomStart = state.summaryZoomStart ?? ss;
+        touchStartZoomEnd   = state.summaryZoomEnd   ?? se;
+      }
+    }, { passive: true });
+    $('summaryArousalChart').addEventListener('touchmove', function(e) {
+      if (e.touches.length === 1 && touchStartX !== null) {
+        e.preventDefault();
+        const rows = state.sessionRows; if (!rows.length) return;
+        const ss = rows[0].elapsed, se = rows[rows.length-1].elapsed;
+        const rect    = this.getBoundingClientRect();
+        const dx      = e.touches[0].clientX - touchStartX;
+        const viewDur = Math.max(1, touchStartZoomEnd - touchStartZoomStart);
+        const panSec  = -(dx / rect.width) * viewDur;
+        let s = touchStartZoomStart + panSec, en = touchStartZoomEnd + panSec;
+        if (s < ss) { s = ss; en = s + viewDur; }
+        if (en > se) { en = se; s = en - viewDur; }
+        state.summaryZoomStart = Math.max(ss, s);
+        state.summaryZoomEnd   = Math.min(se, en);
+        if (state.summaryZoomStart <= ss && state.summaryZoomEnd >= se) {
+          state.summaryZoomStart = null; state.summaryZoomEnd = null;
+        }
+        renderSummary();
+      }
+    }, { passive: false });
+    $('summaryArousalChart').addEventListener('touchend', () => { touchStartX = null; }, { passive: true });
+  })();
+
+  connect();
+</script>
+</body>
+</html>
